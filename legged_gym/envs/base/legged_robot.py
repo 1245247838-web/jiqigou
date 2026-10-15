@@ -288,7 +288,7 @@ class LeggedRobot(BaseTask):
             forward = quat_apply(self.base_quat, self.forward_vec)
             heading = torch.atan2(forward[:, 1], forward[:, 0])
             self.commands[:, 2] = torch.clip(0.5*wrap_to_pi(self.commands[:, 3] - heading), -1., 1.)
-
+                
     def _resample_commands(self, env_ids):
         """ Randommly select commands of some environments
 
@@ -557,6 +557,7 @@ class LeggedRobot(BaseTask):
         self.num_bodies = len(body_names)
         self.num_dofs = len(self.dof_names)
         feet_names = [s for s in body_names if self.cfg.asset.foot_name in s]
+        self.feet_names = feet_names
         penalized_contact_names = []
         for name in self.cfg.asset.penalize_contacts_on:
             penalized_contact_names.extend([s for s in body_names if name in s])
@@ -720,7 +721,8 @@ class LeggedRobot(BaseTask):
         
     def _reward_stand_still(self):
         # Penalize motion at zero commands
-        return torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim=1) * (torch.norm(self.commands[:, :2], dim=1) < 0.1)
+        zero_command = ((torch.norm(self.commands[:, :2], dim=1) < 0.1)& (torch.abs(self.commands[:, 2]) < 0.1))
+        return torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim=1) * zero_command
 
     def _reward_feet_contact_forces(self):
         # penalize high contact forces
